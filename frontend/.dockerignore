@@ -1,0 +1,27 @@
+# Dependencies & build
+node_modules
+dist
+dist-ssr
+*.local
+
+# Environment & kredensial (JANGAN masuk image)
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+logs
+*.log
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
