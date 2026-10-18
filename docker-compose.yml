@@ -51,7 +51,7 @@ services:
       APP_ENV: production
       APP_DEBUG: "false"
       # APP_KEY & kredensial DB berasal dari file .env (tidak di-commit).
-      APP_KEY: ${APP_KEY:?APP_KEY wajib diisi. Salin .env.example menjadi .env lalu jalankan: php -r "echo base64_encode(random_bytes(32));"}
+      APP_KEY: ${APP_KEY:?APP_KEY wajib diisi - salin .env.example menjadi .env lalu isi dari php artisan key:generate --show}
       APP_URL: ${APP_URL:-http://localhost:8000}
 
       DB_CONNECTION: mysql
