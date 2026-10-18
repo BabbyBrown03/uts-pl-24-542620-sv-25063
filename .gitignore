@@ -1,0 +1,40 @@
+# Dependencies
+/backend/vendor/
+/frontend/node_modules/
+/frontend/dist/
+
+# Environment & kredensial (JANGAN di-commit)
+/.env
+/backend/.env
+/frontend/.env
+*.local
+
+# Database lokal
+/backend/database/*.sqlite
+/backend/database/*.sqlite-journal
+
+# Logs & cache
+*.log
+/backend/storage/logs/*
+!/backend/storage/logs/.gitignore
+/backend/storage/framework/cache/data/*
+/backend/storage/framework/sessions/*
+/backend/storage/framework/views/*
+/backend/bootstrap/cache/*.php
+!/backend/bootstrap/cache/.gitignore
+
+# Testing
+/backend/.phpunit.cache
+/backend/.phpunit.result.cache
+/backend/phpunit.xml.bak
+
+# Editor / OS
+.idea/
+/.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+docker-compose.override.yml

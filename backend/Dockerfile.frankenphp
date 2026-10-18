@@ -1,0 +1,62 @@
+# ---------- Tahap 1: install dependency PHP ----------
+# Versi image dasar eksplisit (bukan latest).
+FROM composer:2.8.8 AS vendor
+
+WORKDIR /app
+
+# composer.json & composer.lock disalin lebih dulu DAN dependency diinstal
+# sebelum kode aplikasi disalin -> cache layer tetap efektif.
+COPY composer.json composer.lock ./
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --no-scripts \
+    --prefer-dist
+
+# ---------- Tahap 2: siapkan dependency sistem untuk FrankenPHP ----------
+FROM php:8.3-cli-bookworm AS base-ext
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libzip-dev libicu-dev libssl-dev libcurl4-openssl-dev libonig-dev \
+        libbrotli-dev libzstd-dev libargon2-dev libeditreadline-dev unzip curl ca-certificates git \
+    && docker-php-ext-install pdo_mysql zip intl opcache \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------- Tahap 3: image runtime FrankenPHP ----------
+FROM dunglas/frankenphp:1-php8.3-bookworm
+
+WORKDIR /app
+
+# Ambil seluruh extension yang sudah dikompilasi dari tahap 2.
+COPY --from=base-ext /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
+COPY --from=base-ext /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
+
+# Dependensi aplikasi hasil tahap 1 (TIDAK menyertakan .env / secret).
+COPY --from=vendor /app/vendor ./vendor
+
+# Kode aplikasi.
+COPY . .
+
+# Konfigurasi FrankenPHP: menyajikan folder public Laravel sebagai aplikasi PHP.
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chown -R www-data:www-data storage bootstrap/cache
+
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    DB_CONNECTION=mysql \
+    CACHE_STORE=file \
+    SESSION_DRIVER=file \
+    QUEUE_CONNECTION=sync \
+    FRANKENPHP_CONFIG=/etc/caddy/Caddyfile
+
+EXPOSE 8000
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]

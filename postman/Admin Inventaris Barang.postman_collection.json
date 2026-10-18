@@ -1,0 +1,283 @@
+{
+  "info": {
+    "_postman_id": "b7c1e2a4-3f5d-4a6b-9c8e-1d2f3a4b5c6d",
+    "name": "Admin Inventaris Barang API",
+    "description": "REST API Admin Inventaris Barang (Laravel + Sanctum).\n\nURUTAN PENGGUNAAN:\n1. Buka tab Environments, pilih \"Lokal - php artisan serve\" atau \"Docker Compose\".\n2. Jalankan request \"1. Login\" terlebih dahulu. Token otomatis tersimpan di variabel {{token}}.\n3. Jalankan request CRUD barang.\n4. Jalankan \"8. Logout\" di akhir.\n\nVariabel: {{base_url}} dan {{token}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000/api", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "barang_id", "value": "1", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Token dikembalikan', function () { pm.expect(body.token).to.be.a('string').and.not.empty; });",
+                  "pm.test('User dikembalikan tanpa password', function () { pm.expect(body.user).to.have.property('email'); pm.expect(body.user).to.not.have.property('password'); });",
+                  "pm.environment.set('token', body.token);",
+                  "console.log('Token disimpan:', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@inventaris.test\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            },
+            "description": "POST /api/login - validasi email & password, mengembalikan token Sanctum."
+          }
+        },
+        {
+          "name": "Login gagal - password salah (422)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@inventaris.test\",\n  \"password\": \"password-salah\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
+          }
+        },
+        {
+          "name": "Login gagal - data tidak lengkap (422)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
+          }
+        },
+        {
+          "name": "Cek token - Me (200)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/me", "host": ["{{base_url}}"], "path": ["me"] }
+          }
+        },
+        {
+          "name": "Akses tanpa token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 401', function () { pm.response.to.have.status(401); });"]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/barang", "host": ["{{base_url}}"], "path": ["barang"] },
+            "description": "Membuktikan endpoint selain login dilindungi token."
+          }
+        },
+        {
+          "name": "Logout (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.environment.set('token', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{base_url}}/logout", "host": ["{{base_url}}"], "path": ["logout"] },
+            "description": "POST /api/logout - mencabut token yang sedang digunakan."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Barang - CRUD",
+      "item": [
+        {
+          "name": "Tampilkan semua barang (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Berisi data barang', function () { pm.expect(pm.response.json().data).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/barang", "host": ["{{base_url}}"], "path": ["barang"] }
+          }
+        },
+        {
+          "name": "Tambah barang (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('barang_id', body.data.id);",
+                  "console.log('barang_id =', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kode_barang\": \"BRG-POSTMAN-01\",\n  \"nama_barang\": \"Barang Dari Postman\",\n  \"kategori\": \"Umum\",\n  \"stok\": 10,\n  \"harga\": 250000.00\n}"
+            },
+            "url": { "raw": "{{base_url}}/barang", "host": ["{{base_url}}"], "path": ["barang"] },
+            "description": "POST /api/barang - kode_barang harus unik."
+          }
+        },
+        {
+          "name": "Detail barang (200)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/barang/{{barang_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["barang", "{{barang_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Ubah barang (200)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kode_barang\": \"BRG-POSTMAN-01\",\n  \"nama_barang\": \"Barang Dari Postman (Diubah)\",\n  \"kategori\": \"Elektronik\",\n  \"stok\": 25,\n  \"harga\": 275000.50\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/barang/{{barang_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["barang", "{{barang_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Hapus barang (200)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/barang/{{barang_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["barang", "{{barang_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Skenario Gagal",
+      "item": [
+        {
+          "name": "Barang tidak ada (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', function () { pm.response.to.have.status(404); });",
+                  "pm.test('Pesan ringkas tanpa detail internal', function () { pm.expect(pm.response.json().message).to.eql('Data yang diminta tidak ditemukan.'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/barang/999999", "host": ["{{base_url}}"], "path": ["barang", "999999"] }
+          }
+        },
+        {
+          "name": "Stok & harga negatif (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status 422', function () { pm.response.to.have.status(422); });"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kode_barang\": \"BRG-NEGATIF\",\n  \"nama_barang\": \"Barang Negatif\",\n  \"kategori\": \"Umum\",\n  \"stok\": -5,\n  \"harga\": -1000\n}"
+            },
+            "url": { "raw": "{{base_url}}/barang", "host": ["{{base_url}}"], "path": ["barang"] }
+          }
+        },
+        {
+          "name": "Kode barang duplikat (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422', function () { pm.response.to.have.status(422); });",
+                  "pm.test('Error kode_barang', function () { pm.expect(pm.response.json().errors).to.have.property('kode_barang'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kode_barang\": \"BRG-001\",\n  \"nama_barang\": \"Duplikat\",\n  \"kategori\": \"Umum\",\n  \"stok\": 1,\n  \"harga\": 1000\n}"
+            },
+            "url": { "raw": "{{base_url}}/barang", "host": ["{{base_url}}"], "path": ["barang"] },
+            "description": "BRG-001 sudah ada dari seeder."
+          }
+        }
+      ]
+    }
+  ]
+}
