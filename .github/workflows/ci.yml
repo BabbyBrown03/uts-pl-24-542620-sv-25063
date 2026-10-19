@@ -183,7 +183,22 @@ jobs:
           APP_KEY: ${{ secrets.APP_KEY }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
+          set -euo pipefail
           cp .env.example .env
+
+          # Bila secret belum dibuat di repository, gunakan nilai acak
+          # HANYA untuk runner ini agar smoke test tetap bisa berjalan.
+          # Nilai acak TIDAK pernah disimpan di repository.
+          if [ -z "${APP_KEY:-}" ]; then
+            echo "::warning title=Secret belum ada::Secret APP_KEY kosong pada repository ini. Menggunakan APP_KEY acak untuk runner. Tambahkan secret APP_KEY di Settings > Secrets and variables > Actions."
+            APP_KEY="base64:$(openssl rand -base64 32)"
+          fi
+
+          if [ -z "${DB_PASSWORD:-}" ]; then
+            echo "::warning title=Secret belum ada::Secret DB_PASSWORD kosong pada repository ini. Menggunakan password acak untuk runner. Tambahkan secret DB_PASSWORD di Settings > Secrets and variables > Actions."
+            DB_PASSWORD="$(openssl rand -hex 16)"
+          fi
+
           {
             echo "APP_KEY=${APP_KEY}"
             echo "DB_PASSWORD=${DB_PASSWORD}"
@@ -191,7 +206,15 @@ jobs:
             echo "DB_USERNAME=inventaris"
             echo "DB_DATABASE=inventaris"
           } >> .env
-          echo "--- .env berhasil dibuat dari Secrets ---"
+
+          # Verifikasi .env benar-benar terbaca oleh Docker Compose.
+          # Divalidasi di sini supaya error tidak muncul sebagai pesan
+          # "required variable ... is missing a value" yang membingungkan.
+          if ! docker compose config --quiet; then
+            echo "::error::File .env hasil tidak valid untuk Docker Compose."
+            exit 1
+          fi
+          echo "--- .env siap; APP_KEY & DB_PASSWORD terbaca oleh Docker Compose ---"
 
       - name: Build & jalankan seluruh sistem
         run: docker compose up -d --build
