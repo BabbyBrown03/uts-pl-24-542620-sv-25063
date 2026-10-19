@@ -405,7 +405,19 @@ Repository → **Settings → Secrets and variables → Actions → New reposito
 | `APP_KEY` | `base64:...` (dari `php artisan key:generate --show`) | `deploy-smoke` |
 | `DB_PASSWORD` | password database MySQL | `deploy-smoke` |
 
+Nama secret harus persis `APP_KEY` dan `DB_PASSWORD` (huruf besar, tanpa spasi).
+
 > `GITHUB_TOKEN` tidak perlu dibuat manual; otomatis tersedia.
+
+**Perilaku bila secret belum dibuat:** job `deploy-smoke` tidak langsung gagal.
+Workflow akan menampilkan peringatan di log GitHub Actions:
+
+```
+::warning title=Secret belum ada::Secret APP_KEY kosong pada repository ini...
+```
+
+dan memakai nilai acak yang hanya berlaku di runner tersebut (tidak pernah
+disimpan di repository) agar pengujian tetap bisa berjalan. Secret sebenarnya tetap disarankan agar pipeline benar-benar memakai kredensial Anda.
 
 ### 8.3 Branch Protection / Ruleset
 
@@ -559,6 +571,7 @@ ketentuan jaringan sama seperti service pada umumnya.
 | 12 | Requests ke `http://localhost:8080/api/*` dibalas **404 "Endpoint tidak ditemukan"**, padahal backend sehat. | Penyebabnya `proxy_pass` memakai variabel **beserta** komponen path (`$upstream/api/`), sehingga Nginx memotong awalan `/api` dan mengirim `/barang` ke Laravel. Diperbaiki dengan `proxy_pass http://$backend_upstream;` (tanpa path) agar URI diteruskan apa adanya. |
 | 13 | Pull image `mysql:8.4` gagal dengan `TLS handshake timeout`. | Gejala jaringan sementara; pulling diulang; pulling diulang dengan percobaan berjenjang hingga berhasil. |
 | 14 | Bukti "API dilayani FrankenPHP" sulit diambil karena log tidak mencatat request. | Menambahkan blok `log { output stdout; format console }` pada `backend/Caddyfile`. Sekarang setiap request API terlihat di `docker compose logs backend` lengkap dengan header `Server: FrankenPHP Caddy`. |
+| 15 | Job `deploy-smoke` gagal dengan `required variable APP_KEY is missing a value` setelah PR `dev` → `main` di-merge. | Penyebabnya secret `APP_KEY`/`DB_PASSWORD` belum dibuat di repository, sehingga nilainya kosong. Workflow diperbaiki agar: (1) memberi peringatan yang jelas di log bila secret kosong, (2) memakai nilai acak sementara khusus runner agar pipeline tetap bisa jalan, dan (3) memvalidasi `.env` dengan `docker compose config --quiet` sebelum menjalankan container, sehingga pesan error tidak lagi membingungkan. |
 
 ---
 
