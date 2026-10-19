@@ -492,19 +492,49 @@ Backend dijalankan dengan **FrankenPHP** (`dunglas/frankenphp:1-php8.3-bookworm`
 sebagai server aplikasi, menggantikan `php artisan serve` dan PHP-FPM + Nginx.
 Versi image ditulis eksplisit, bukan `latest`.
 
-Request API memang dilayani oleh FrankenPHP. Buktinya:
+Request API memang dilayani oleh FrankenPHP. Bukti yang sudah dijalankan:
 
-1. Port 8000 pada container `inv-backend` adalah worker Caddy/FrankenPHP
-   (`frankenphp run --config /etc/caddy/Caddyfile`), bukan `php-fpm`.
-2. Log container menampilkan baris akses dari FrankenPHP, misalnya:
-   ```
-   inv-backend  | 127.0.0.1 - - [18/Oct/2026:08:30:11 +0000] "POST /api/login HTTP/1.1" 200
-   ```
-3. Perintah berikut dapat dijalankan di dalam container:
-   ```bash
-   docker compose exec backend sh -c 'ps -o args= | head'
-   # -> FrankenPHP (Caddy) worker
-   ```
+**1. Proses utama di dalam container:**
+
+```bash
+docker compose exec -T backend cat /proc/1/cmdline
+# frankenphp run --config /etc/caddy/Caddyfile
+```
+
+**2. Log startup:**
+
+```
+{"logger":"frankenphp","msg":"FrankenPHP started 🐘","php_version":"8.3.35","total_threads":24}
+```
+
+**3. Log request — request browser → Nginx → FrankenPHP → Laravel:**
+
+```
+INFO http.log.access.log0 handled request {
+  "request": {
+    "remote_ip": "172.18.0.4",          <- container frontend (Nginx)
+    "method": "POST", "uri": "/api/login",
+    "X-Forwarded-For": ["172.18.0.1"],   <- browser di host
+    "Authorization": ["REDACTED"]
+  },
+  "status": 200,
+  "resp_headers": {
+    "Server": ["FrankenPHP Caddy"],
+    "X-Powered-By": ["PHP/8.3.35"]
+  }
+}
+```
+
+Header `Server: FrankenPHP Caddy` dan `X-Powered-By: PHP/8.3.35` pada setiap
+respons membuktikan request diproses oleh FrankenPHP, bukan oleh
+`php artisan serve` maupun PHP-FPM + Nginx.
+
+Perintah lengkap untuk mengambil bukti tersebut:
+
+```bash
+docker compose up -d --build
+docker compose logs --tail=15 backend
+```
 
 Backend tetap berjalan bersama service lain di `docker-compose.yml`, dengan
 ketentuan jaringan sama seperti service pada umumnya.
@@ -525,6 +555,10 @@ ketentuan jaringan sama seperti service pada umumnya.
 | 8 | Konversi line ending Git (CRLF) dapat merusak `docker-entrypoint.sh` di container Linux. | Menambahkan `.gitattributes` dengan `*.sh text eol=lf` dan `Dockerfile* text eol=lf`. |
 | 9 | Seeder dijalankan ulang tiap container start berisiko menggandakan atau menimpa data. | Seeder memakai `updateOrCreate` sehingga idempotent, dan data pada named volume tetap utuh setelah `docker compose down` lalu `up`. |
 | 10 | `npm` diblokir oleh Execution Policy PowerShell. | Gunakan `npm.cmd` sebagai pengganti `npm`. |
+| 11 | Step `php artisan key:generate --force` di GitHub Actions gagal dengan error pada `file_get_contents(.env)`. | `.env` memang tidak di-commit, sehingga tidak ada di runner. Workflow diperbaiki: `cp .env.example .env` **sebelum** menjalankan `key:generate`. Diverifikasi lokal: 17 test lulus. |
+| 12 | Requests ke `http://localhost:8080/api/*` dibalas **404 "Endpoint tidak ditemukan"**, padahal backend sehat. | Penyebabnya `proxy_pass` memakai variabel **beserta** komponen path (`$upstream/api/`), sehingga Nginx memotong awalan `/api` dan mengirim `/barang` ke Laravel. Diperbaiki dengan `proxy_pass http://$backend_upstream;` (tanpa path) agar URI diteruskan apa adanya. |
+| 13 | Pull image `mysql:8.4` gagal dengan `TLS handshake timeout`. | Gejala jaringan sementara; pulling diulang; pulling diulang dengan percobaan berjenjang hingga berhasil. |
+| 14 | Bukti "API dilayani FrankenPHP" sulit diambil karena log tidak mencatat request. | Menambahkan blok `log { output stdout; format console }` pada `backend/Caddyfile`. Sekarang setiap request API terlihat di `docker compose logs backend` lengkap dengan header `Server: FrankenPHP Caddy`. |
 
 ---
 
