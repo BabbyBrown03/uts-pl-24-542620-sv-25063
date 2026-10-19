@@ -1,4 +1,11 @@
 :8000 {
 	root /app/public
 	php_server
+
+	# Access log agar bisa membuktikan request API benar-benar
+	# dilayani oleh FrankenPHP (lihat docker compose logs backend).
+	log {
+		output stdout
+		format console
+	}
 }

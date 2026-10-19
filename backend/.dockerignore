@@ -1,0 +1,34 @@
+# Environment & kredensial (JANGAN pernah masuk image)
+.env
+.env.*
+!.env.example
+
+# Dependencies di-build ulang di dalam image
+/vendor
+/node_modules
+
+# Cache & log
+/storage/logs/*
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/bootstrap/cache/*.php
+*.log
+
+# Testing & tools (tidak diperlukan di image produksi)
+/.phpunit.cache
+.phpunit.result.cache
+.php-cs-fixer.cache
+/tests
+/.github
+/postman
+
+# Editor / OS
+.vscode
+.idea
+.git
+.gitignore
+Dockerfile
+.dockerignore
+Thumbs.db
+.DS_Store

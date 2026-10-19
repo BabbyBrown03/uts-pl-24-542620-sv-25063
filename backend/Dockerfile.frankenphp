@@ -15,28 +15,21 @@ RUN composer install \
     --no-scripts \
     --prefer-dist
 
-# ---------- Tahap 2: siapkan dependency sistem untuk FrankenPHP ----------
-FROM php:8.3-cli-bookworm AS base-ext
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        libzip-dev libicu-dev libssl-dev libcurl4-openssl-dev libonig-dev \
-        libbrotli-dev libzstd-dev libargon2-dev libeditreadline-dev unzip curl ca-certificates git \
-    && docker-php-ext-install pdo_mysql zip intl opcache \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && rm -rf /var/lib/apt/lists/*
-
-# ---------- Tahap 3: image runtime FrankenPHP ----------
+# ---------- Tahap 2: runtime FrankenPHP ----------
+# Versi eksplisit: 1 (versi utama FrankenPHP) + php8.3 + bookworm.
 FROM dunglas/frankenphp:1-php8.3-bookworm
 
 WORKDIR /app
 
-# Ambil seluruh extension yang sudah dikompilasi dari tahap 2.
-COPY --from=base-ext /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
-COPY --from=base-ext /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
+# Hanya extension yang benar-benar dipakai aplikasi.
+# pdo_mysql  -> koneksi ke database MySQL
+# opcache    -> cache opcode PHP
+# intl       -> formatasi lokal/tanggal
+# zip        -> butuh oleh composer/artisan
+RUN install-php-extensions pdo_mysql opcache intl zip
 
-# Dependensi aplikasi hasil tahap 1 (TIDAK menyertakan .env / secret).
+# Dependensi aplikasi hasil tahap 1.
+# .env tidak pernah ikut karena .dockerignore mengecualikannya.
 COPY --from=vendor /app/vendor ./vendor
 
 # Kode aplikasi.
@@ -45,7 +38,10 @@ COPY . .
 # Konfigurasi FrankenPHP: menyajikan folder public Laravel sebagai aplikasi PHP.
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && mkdir -p storage/framework/cache/data storage/framework/sessions \
+                storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
 ENV APP_ENV=production \

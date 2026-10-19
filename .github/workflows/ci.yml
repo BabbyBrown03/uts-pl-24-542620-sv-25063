@@ -44,8 +44,17 @@ jobs:
       - name: Install dependency
         run: composer install --no-interaction --no-progress --prefer-dist
 
-      - name: Siapkan APP_KEY
-        run: php artisan key:generate --force
+      # .env tidak pernah di-commit, jadi harus dibuat dari .env.example
+      # terlebih dahulu; tanpa file .env, `key:generate` akan gagal.
+      - name: Siapkan konfigurasi & APP_KEY
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: Siapkan database SQLite untuk test
+        run: |
+          mkdir -p database
+          touch database/database.sqlite
 
       - name: Menjalankan feature test
         run: php artisan test
