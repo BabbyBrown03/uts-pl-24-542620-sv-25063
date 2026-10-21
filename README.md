@@ -400,24 +400,14 @@ izin `packages: write`) — **tidak ada username/password yang disimpan di repos
 
 Repository → **Settings → Secrets and variables → Actions → New repository secret**:
 
-| Nama Secret | Isi | Dipakai oleh |
+| Nama Secret | Isi | Keterangan |
 |---|---|---|
-| `APP_KEY` | `base64:...` (dari `php artisan key:generate --show`) | `deploy-smoke` |
-| `DB_PASSWORD` | password database MySQL | `deploy-smoke` |
+| `APP_KEY` | `base64:...` (dari `php artisan key:generate --show`) | Sesuai Soal 4.b |
+| `DB_PASSWORD` | password database MySQL | Sesuai Soal 4.b |
 
 Nama secret harus persis `APP_KEY` dan `DB_PASSWORD` (huruf besar, tanpa spasi).
 
-> `GITHUB_TOKEN` tidak perlu dibuat manual; otomatis tersedia.
-
-**Perilaku bila secret belum dibuat:** job `deploy-smoke` tidak langsung gagal.
-Workflow akan menampilkan peringatan di log GitHub Actions:
-
-```
-::warning title=Secret belum ada::Secret APP_KEY kosong pada repository ini...
-```
-
-dan memakai nilai acak yang hanya berlaku di runner tersebut (tidak pernah
-disimpan di repository) agar pengujian tetap bisa berjalan. Secret sebenarnya tetap disarankan agar pipeline benar-benar memakai kredensial Anda.
+> `GITHUB_TOKEN` tidak perlu dibuat manual; otomatis tersedia untuk autentikasi push ke GHCR.
 
 ### 8.3 Branch Protection / Ruleset
 
@@ -603,7 +593,7 @@ Silakan lampirkan screenshot berikut pada laporan PDF.
 - [ ] Daftar branch: `main`, `dev`, dan branch fitur
 - [ ] Halaman Pull Request (dev → main) beserta status check yang hijau
 - [ ] Screenshot **Settings → Rules → Rules** untuk `main` dan `dev`
-- [ ] GitHub Actions: workflow hijau pada `main` (4 job)
+- [ ] GitHub Actions: workflow hijau pada `main` (3 job: backend-test, frontend-build, deploy GHCR)
 - [ ] GitHub Actions: workflow pada `dev` **tanpa** job deploy
 - [ ] GitHub Actions: workflow pada Pull Request **tanpa** job deploy
 - [ ] GitHub **Packages**:GHCR menampilkan `backend` dan `frontend`
