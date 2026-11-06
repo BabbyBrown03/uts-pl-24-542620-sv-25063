@@ -8,6 +8,7 @@ use App\Models\Barang;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Log;
 
 class BarangController extends Controller
 {
@@ -36,6 +37,13 @@ class BarangController extends Controller
     {
         $barang = Barang::create($request->validated());
 
+        Log::info('Barang berhasil disimpan ke basis data', [
+            'user_id' => auth()->id(),
+            'action' => 'create_barang',
+            'kode_barang' => $barang->kode_barang,
+            'alasan' => 'penyimpanan_data_barang_berhasil',
+        ]);
+
         return response()->json([
             'message' => 'Barang berhasil ditambahkan.',
             'data' => new BarangResource($barang),
@@ -49,6 +57,13 @@ class BarangController extends Controller
     {
         $barang->update($request->validated());
 
+        Log::info('Data barang berhasil diperbarui', [
+            'user_id' => auth()->id(),
+            'action' => 'update_barang',
+            'kode_barang' => $barang->kode_barang,
+            'alasan' => 'pembaruan_data_barang_berhasil',
+        ]);
+
         return response()->json([
             'message' => 'Barang berhasil diperbarui.',
             'data' => new BarangResource($barang->fresh()),
@@ -60,7 +75,15 @@ class BarangController extends Controller
      */
     public function destroy(Barang $barang): JsonResponse
     {
+        $kodeBarang = $barang->kode_barang;
         $barang->delete();
+
+        Log::info('Data barang berhasil dihapus dari basis data', [
+            'user_id' => auth()->id(),
+            'action' => 'delete_barang',
+            'kode_barang' => $kodeBarang,
+            'alasan' => 'penghapusan_data_barang_berhasil',
+        ]);
 
         return response()->json([
             'message' => 'Barang berhasil dihapus.',

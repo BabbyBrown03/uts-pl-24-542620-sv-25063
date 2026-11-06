@@ -32,12 +32,16 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - inventaris
 
   backend:
     build:
-      # Image dasar eksplisit (dunglas/frankenphp:1-php8.3-bookworm).
       context: ./backend
       dockerfile: Dockerfile.frankenphp
     image: ghcr.io/uts-pl-24-542620-sv-25063/backend:latest
@@ -50,7 +54,6 @@ services:
       APP_NAME: "Admin Inventaris Barang"
       APP_ENV: production
       APP_DEBUG: "false"
-      # APP_KEY & kredensial DB berasal dari file .env (tidak di-commit).
       APP_KEY: ${APP_KEY:?APP_KEY wajib diisi - salin .env.example menjadi .env lalu isi dari php artisan key:generate --show}
       APP_URL: ${APP_URL:-http://localhost:8000}
 
@@ -67,11 +70,16 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/up"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 40s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - inventaris
 
@@ -80,9 +88,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Frontend memanggil /api pada origin-nya sendiri; Nginx meneruskannya
-        # ke service "backend". Browser (yang jalan di host) tidak perlu
-        # me-resolve nama service internal Docker.
         VITE_API_BASE_URL: /api
         VITE_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@inventaris.test}
     image: ghcr.io/uts-pl-24-542620-sv-25063/frontend:latest
@@ -99,6 +104,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - inventaris
 
