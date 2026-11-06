@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class BarangRequest extends FormRequest
@@ -35,6 +37,24 @@ class BarangRequest extends FormRequest
             'stok' => ['required', 'integer', 'min:0'],
             'harga' => ['required', 'numeric', 'min:0'],
         ];
+    }
+
+    /**
+     * Catat log terstruktur saat validasi gagal, lalu lemparkan
+     * ValidationException seperti biasanya.
+     *
+     * Data pribadi (password, token, dll.) tidak pernah dicatat.
+     */
+    protected function failedValidation(Validator $validator): void
+    {
+        Log::warning('Validasi input barang gagal', [
+            'user_id' => auth()->id() ?? 'guest',
+            'action' => $this->method() . ' ' . $this->path(),
+            'alasan' => 'validasi_input_gagal',
+            'field_error' => array_keys($validator->errors()->toArray()),
+        ]);
+
+        parent::failedValidation($validator);
     }
 
     /**
