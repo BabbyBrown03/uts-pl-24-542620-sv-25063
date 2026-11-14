@@ -3,10 +3,16 @@
 # Menjalankan SELURUH sistem dengan satu perintah dari root repository:
 #     docker compose up -d --build
 #
-# Service:
+# Service aplikasi:
 #   mysql    - database MySQL 8 (named volume, data tidak hilang)
 #   backend  - Laravel REST API yang dilayani FrankenPHP
 #   frontend - hasil build Vue.js disajikan Nginx + proxy /api ke backend
+#
+# Service monitoring:
+#   prometheus   - pengumpul metrik & aturan alarm
+#   grafana      - dashboard visualisasi
+#   cadvisor     - metrik container (CPU, memori, jaringan)
+#   node-exporter - metrik host (Node.js/linux host)
 
 name: admin-inventaris
 
@@ -112,9 +118,108 @@ services:
     networks:
       - inventaris
 
+  # ============================================================
+  # LAYANAN PEMANTAU (Monitoring)
+  # ============================================================
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: inv-prometheus
+    restart: unless-stopped
+    volumes:
+      - prometheus-data:/prometheus
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - inventaris
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: inv-blackbox-exporter
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    command:
+      - '--config.file=/etc/blackbox/blackbox.yml'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - inventaris
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: inv-grafana
+    restart: unless-stopped
+    environment:
+      # Ganti password default admin agar tidak biarkan admin/admin.
+      - GF_SECURITY_ADMIN_PASSWORD=GantiSaya123!
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - inventaris
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:0.55.1
+    container_name: inv-cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    ports:
+      - "8081:8080"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - inventaris
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.0
+    container_name: inv-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - inventaris
+
 volumes:
   dbdata:
     name: inventaris-dbdata
+  prometheus-data:
+    name: inventaris-prometheus-data
+  grafana-data:
+    name: inventaris-grafana-data
 
 networks:
   inventaris:
